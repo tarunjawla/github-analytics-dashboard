@@ -3,12 +3,15 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ReposController } from "./repos.controller";
 import { ReposService } from "./repos.service";
 import { RepoStats } from "../../common/entities/repo-stats.entity";
-import { GitHubService } from "../github/github.service";
+import { GitHubModule } from "../github/github.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RepoStats])],
+  imports: [
+    TypeOrmModule.forFeature([RepoStats]),
+    GitHubModule,
+  ],
   controllers: [ReposController],
-  providers: [ReposService, GitHubService],
+  providers: [ReposService],
   exports: [ReposService],
 })
 export class ReposModule {}

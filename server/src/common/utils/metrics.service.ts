@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-interface ApiCall {
+export interface ApiCall {
   endpoint: string;
   timestamp: number;
   duration: number;
@@ -8,7 +8,7 @@ interface ApiCall {
   errorMessage?: string;
 }
 
-interface GitHubApiMetrics {
+export interface GitHubApiMetrics {
   totalCalls: number;
   successfulCalls: number;
   failedCalls: number;

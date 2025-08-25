@@ -21,6 +21,18 @@ export class RepoStats {
   @Column({ type: 'int', default: 0 })
   contributors: number;
 
+  @Column({ type: 'text', nullable: true })
+  language: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ type: 'text', nullable: true })
+  html_url: string;
+
   @CreateDateColumn()
   timestamp: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  updated_at: Date;
 }
