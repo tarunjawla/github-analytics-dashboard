@@ -1,0 +1,45 @@
+{
+  "name": "github-analytics-dashboard",
+  "version": "1.0.0",
+  "description": "Full-stack GitHub Analytics Dashboard with React frontend and NestJS backend",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "client:dev": "cd client && npm run dev",
+    "server:dev": "cd server && npm run start:dev",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "start": "npm run start:server",
+    "start:server": "cd server && npm run start:prod",
+    "lint": "npm run lint:client && npm run lint:server",
+    "lint:client": "cd client && npm run lint",
+    "lint:server": "cd server && npm run lint",
+    "format": "npm run format:client && npm run format:server",
+    "format:client": "cd client && npm run format",
+    "format:server": "cd server && npm run format"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "github",
+    "analytics",
+    "dashboard",
+    "react",
+    "nestjs",
+    "typescript",
+    "postgresql",
+    "charts"
+  ],
+  "author": "GitHub Analytics Team",
+  "license": "MIT"
+}
