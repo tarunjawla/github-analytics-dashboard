@@ -82,4 +82,29 @@ export class GitHubService {
       return 0;
     }
   }
+
+  async getRepositoryStats(owner: string, repo: string): Promise<{ repo: GitHubRepo; contributors: GitHubContributor[] }> {
+    try {
+      const [repoData, contributors] = await Promise.all([
+        this.getRepository(owner, repo),
+        this.getContributors(owner, repo)
+      ]);
+
+      return { repo: repoData, contributors };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to fetch repository stats for ${owner}/${repo}: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  async getRateLimitInfo(): Promise<{ limit: number; remaining: number; reset: number }> {
+    try {
+      const response = await this.api.get('/rate_limit');
+      return response.data.resources.core;
+    } catch (error) {
+      this.logger.error('Failed to fetch rate limit info:', error);
+      return { limit: 0, remaining: 0, reset: 0 };
+    }
+  }
 }

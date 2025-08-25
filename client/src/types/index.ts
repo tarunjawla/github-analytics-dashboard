@@ -5,7 +5,11 @@ export interface RepoStats {
   forks: number;
   issues: number;
   contributors: number;
+  language?: string;
+  description?: string;
+  html_url?: string;
   timestamp: string;
+  updated_at?: string;
 }
 
 export interface Repository {

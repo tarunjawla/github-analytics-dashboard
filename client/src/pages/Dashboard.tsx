@@ -14,6 +14,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { Github } from "lucide-react";
 import { useRepoStore } from "../store/useRepoStore";
 import {
   formatNumber,
@@ -97,33 +98,45 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                GitHub Analytics Dashboard
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Track your repository metrics and performance
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <form onSubmit={handleAddRepo} className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newRepoName}
-                  onChange={(e) => setNewRepoName(e.target.value)}
-                  placeholder="Enter repo name (e.g., facebook/react)"
-                  className="input w-64"
-                />
-                <button type="submit" className="btn-primary">
-                  Add Repo
-                </button>
-              </form>
-            </div>
-          </div>
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="flex justify-between items-center py-6">
+      
+      {/* Logo + Title */}
+      <div className="flex items-center space-x-4">
+        <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center shadow-md">
+          <Github className="w-7 h-7 text-white" />
         </div>
-      </header>
+        <div>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            GitHub Analytics Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Track your repository metrics and performance
+          </p>
+        </div>
+      </div>
+
+      {/* Add Repo Form */}
+      <div className="flex items-center space-x-4">
+        <form onSubmit={handleAddRepo} className="flex space-x-2">
+          <input
+            type="text"
+            value={newRepoName}
+            onChange={(e) => setNewRepoName(e.target.value)}
+            placeholder="Enter repo name (e.g., facebook/react)"
+            className="border border-gray-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
+          />
+          <button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition"
+          >
+            Add Repo
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
 
       {/* Error Alert */}
       {error && (

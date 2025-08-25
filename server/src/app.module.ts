@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ReposModule } from './modules/repos/repos.module';
 import { DatabaseConfig } from './config/database.config';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -17,5 +18,6 @@ import { DatabaseConfig } from './config/database.config';
     ScheduleModule.forRoot(),
     ReposModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

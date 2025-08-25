@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { RepoStats } from "../../common/entities/repo-stats.entity";
-import { GitHubService, GitHubRepo } from "../../common/utils/github.service";
+import { GitHubService, GitHubRepo } from "../github/github.service";
 import { AddRepoDto, AddRepoResponseDto } from "../../common/dto/add-repo.dto";
 
 @Injectable()
