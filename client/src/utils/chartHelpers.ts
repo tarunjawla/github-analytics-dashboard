@@ -1,5 +1,5 @@
 import type { RepoStats, ChartDataPoint } from "../types";
-import { defaultTo, sortBy, map as _map, forEach as _forEach } from "lodash";
+import { defaultTo, sortBy, map as _map, forEach as _forEach, groupBy } from "lodash";
 
 export const formatChartData = (stats: RepoStats[] | undefined): ChartDataPoint[] => {
   const safeStats = defaultTo(stats, [] as RepoStats[]);
@@ -21,6 +21,44 @@ export const formatTimeSeriesData = (
     value: stat[metric],
     date: stat.timestamp,
   }));
+};
+
+// Build a 12-month series (last 12 months), bucketing by month and using the last value in each month.
+export const formatYearTimeSeriesData = (
+  stats: RepoStats[] | undefined,
+  metric: keyof Pick<RepoStats, "stars" | "forks" | "issues" | "contributors">
+): ChartDataPoint[] => {
+  const safeStats = defaultTo(stats, [] as RepoStats[]);
+  const byMonth = groupBy(safeStats, (s) => {
+    const d = new Date(s.timestamp);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const points: ChartDataPoint[] = [];
+  const now = new Date();
+  const start = new Date(now);
+  start.setMonth(start.getMonth() - 11); // include current month + 11 previous = 12 months
+  start.setDate(1);
+
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(start);
+    d.setMonth(start.getMonth() + i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const bucket = byMonth[key] || [];
+    let value = 0;
+    if (bucket.length > 0) {
+      const sorted = sortBy(bucket, (s) => new Date(s.timestamp).getTime());
+      const last = sorted[sorted.length - 1];
+      value = last[metric];
+    }
+    points.push({
+      name: d.toLocaleString(undefined, { month: "short", year: "2-digit" }),
+      value,
+      date: new Date(d.getFullYear(), d.getMonth(), 1).toISOString(),
+    });
+  }
+
+  return points;
 };
 
 export const groupStatsByRepo = (

@@ -1,26 +1,23 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  LineChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
   Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import { useRepoStore } from "../store/useRepoStore";
-import {
-  formatNumber,
-  getLatestStats,
-  formatTimeSeriesData,
-} from "../utils/chartHelpers";
-import type { ChartDataPoint, AppMode } from "../types";
+import type { AppMode, ChartDataPoint } from "../types";
+import { formatNumber, formatYearTimeSeriesData } from "../utils/chartHelpers";
 
 const COLORS = [
   "#3B82F6",
@@ -49,6 +46,8 @@ const Dashboard: React.FC = () => {
     fetchUserRepoStats,
     clearError,
   } = useRepoStore();
+  const { removeRepoGuest } = useRepoStore();
+  const navigate = useNavigate();
 
   const [newRepoName, setNewRepoName] = useState("");
   const [selectedMetric, setSelectedMetric] = useState<
@@ -83,8 +82,7 @@ const Dashboard: React.FC = () => {
   };
 
   const currentRepos = mode === "guest" ? guestRepos : repositories;
-  const latestStats = getLatestStats(repoStats);
-  const timeSeriesData = formatTimeSeriesData(repoStats, selectedMetric);
+  const timeSeriesData = formatYearTimeSeriesData(repoStats, selectedMetric);
 
   // Generate dummy data for initial display
   const dummyData: ChartDataPoint[] = [
@@ -527,13 +525,13 @@ const Dashboard: React.FC = () => {
                     {currentRepos.length > 0
                       ? currentRepos
                           .slice(0, 6)
-                          .map((entry, index) => (
+                          .map((_entry, index) => (
                             <Cell
                               key={`cell-${index}`}
                               fill={COLORS[index % COLORS.length]}
                             />
                           ))
-                      : dummyData.map((entry, index) => (
+                      : dummyData.map((_entry, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={COLORS[index % COLORS.length]}
@@ -572,11 +570,33 @@ const Dashboard: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatNumber(repo.stargazers_count)}
-                      </p>
-                      <p className="text-xs text-gray-500">stars</p>
+                    <div className="flex items-center space-x-3">
+                      <button
+                        className="btn-secondary"
+                        onClick={() => {
+                          const [owner, name] = (repo.full_name || repo.name).split("/");
+                          navigate(`/tree?owner=${owner}&repo=${name}`);
+                        }}
+                        title="View repository tree"
+                      >
+                        View Tree
+                      </button>
+                      {mode === "guest" && (
+                        <button
+                          onClick={() => removeRepoGuest(repo.full_name || repo.name)}
+                          className="text-gray-400 hover:text-red-600"
+                          title="Remove from list"
+                          aria-label="Remove repository"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-900">
+                          {formatNumber(repo.stargazers_count)}
+                        </p>
+                        <p className="text-xs text-gray-500">stars</p>
+                      </div>
                     </div>
                   </div>
                 ))

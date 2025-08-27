@@ -1,7 +1,7 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import "./index.css";
+import Dashboard from "./pages/Dashboard";
+import RepositoryTree from "./pages/RepositoryTree";
 
 function App() {
   return (
@@ -10,6 +10,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/tree" element={<RepositoryTree />} />
         </Routes>
       </div>
     </Router>

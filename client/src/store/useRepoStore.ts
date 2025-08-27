@@ -26,6 +26,7 @@ interface RepoActions {
 
   // Guest mode actions
   addRepoGuest: (repoName: string) => Promise<void>;
+  removeRepoGuest: (repoFullName: string) => void;
   fetchGuestRepoStats: () => Promise<void>;
 
   // Connected mode actions
@@ -186,6 +187,24 @@ export const useRepoStore = create<RepoStore>()(
         } finally {
           set({ loading: false });
         }
+      },
+
+      removeRepoGuest: (repoFullName: string) => {
+        // Remove from guestRepos and persist
+        set((state) => {
+          const updatedRepos = state.guestRepos.filter((r) => r.full_name !== repoFullName);
+          try { localStorage.setItem("ga_guest_repos", JSON.stringify(updatedRepos)); } catch {}
+          return { guestRepos: updatedRepos };
+        });
+
+        // Remove related stats and persist
+        set((state) => {
+          const updatedStats = state.repoStats.filter((s) => s.repo_name !== repoFullName);
+          try { localStorage.setItem("ga_guest_repo_stats", JSON.stringify(updatedStats)); } catch {}
+          return { repoStats: updatedStats };
+        });
+
+        get().calculateDashboardStats();
       },
 
       fetchGuestRepoStats: async () => {

@@ -8,6 +8,7 @@ import { CommonModule } from './common/common.module';
 import { DatabaseConfig } from './config/database.config';
 import { AppConfig } from './config/app.config';
 import { HealthController } from './health.controller';
+import { TreeModule } from './modules/tree/tree.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { HealthController } from './health.controller';
     CommonModule,
     GitHubModule,
     ReposModule,
+    TreeModule,
   ],
   controllers: [HealthController],
   providers: [AppConfig],
