@@ -46,6 +46,36 @@ type RepoStore = RepoState & RepoActions;
 export const useRepoStore = create<RepoStore>()(
   devtools(
     (set, get) => ({
+      // Local storage keys
+      _guestReposKey: "ga_guest_repos",
+      _guestStatsKey: "ga_guest_repo_stats",
+      _modeKey: "ga_app_mode",
+
+      // Safe JSON helpers
+      _loadArray: <T,>(key: string): T[] => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return [] as T[];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? (parsed as T[]) : [];
+        } catch {
+          return [] as T[];
+        }
+      },
+      _saveArray: <T,>(key: string, value: T[]): void => {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch {}
+      },
+      _loadMode: (): AppMode => {
+        const raw = localStorage.getItem("ga_app_mode");
+        return raw === "connected" ? "connected" : "guest";
+      },
+      _saveMode: (mode: AppMode): void => {
+        try {
+          localStorage.setItem("ga_app_mode", mode);
+        } catch {}
+      },
       // Helper: normalize any GitHub input into owner/repo
       // Supports: https URLs, SSH, raw owner/repo, with or without .git
       // Examples:
@@ -91,10 +121,30 @@ export const useRepoStore = create<RepoStore>()(
         return value;
       },
       // Initial state
-      mode: "guest",
+      mode: ((): AppMode => {
+        try {
+          return (localStorage.getItem("ga_app_mode") as AppMode) || "guest";
+        } catch {
+          return "guest";
+        }
+      })(),
       repositories: [],
-      guestRepos: [],
-      repoStats: [],
+      guestRepos: ((): GuestRepo[] => {
+        try {
+          const raw = localStorage.getItem("ga_guest_repos");
+          return raw ? (JSON.parse(raw) as GuestRepo[]) : [];
+        } catch {
+          return [];
+        }
+      })(),
+      repoStats: ((): RepoStats[] => {
+        try {
+          const raw = localStorage.getItem("ga_guest_repo_stats");
+          return raw ? (JSON.parse(raw) as RepoStats[]) : [];
+        } catch {
+          return [];
+        }
+      })(),
       loading: false,
       error: null,
       dashboardStats: {
@@ -107,7 +157,10 @@ export const useRepoStore = create<RepoStore>()(
       },
 
       // Actions
-      setMode: (mode: AppMode) => set({ mode }),
+      setMode: (mode: AppMode) => {
+        try { localStorage.setItem("ga_app_mode", mode); } catch {}
+        set({ mode });
+      },
 
       setLoading: (loading: boolean) => set({ loading }),
       setError: (error: string | null) => set({ error }),
@@ -120,9 +173,11 @@ export const useRepoStore = create<RepoStore>()(
           // Normalize input to owner/repo for backend validation
           const normalized = (get() as any).normalizeRepoInput(repoName);
           const repo = await apiService.addRepoGuest(normalized);
-          set((state) => ({
-            guestRepos: [...state.guestRepos, repo],
-          }));
+          set((state) => {
+            const updated = [...state.guestRepos, repo];
+            try { localStorage.setItem("ga_guest_repos", JSON.stringify(updated)); } catch {}
+            return { guestRepos: updated };
+          });
           get().calculateDashboardStats();
         } catch (error) {
           const errorMessage =
@@ -137,7 +192,10 @@ export const useRepoStore = create<RepoStore>()(
         try {
           set({ loading: true, error: null });
           const stats = await apiService.getGuestRepoStats();
-          set({ repoStats: stats });
+          set(() => {
+            try { localStorage.setItem("ga_guest_repo_stats", JSON.stringify(stats)); } catch {}
+            return { repoStats: stats };
+          });
           get().calculateDashboardStats();
         } catch (error) {
           const errorMessage =
