@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { Repository } from './repository.entity';
 
 @Entity('repo_stats')
 @Index(['repo_name', 'timestamp'])
@@ -35,4 +36,11 @@ export class RepoStats {
 
   @Column({ type: 'timestamp', nullable: true })
   updated_at: Date;
+
+  @ManyToOne(() => Repository, repo => repo.stats)
+  @JoinColumn({ name: 'repository_id' })
+  repository: Repository;
+
+  @Column({ nullable: true })
+  repository_id: number;
 }

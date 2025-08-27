@@ -44,3 +44,34 @@ export interface DashboardStats {
   totalIssues: number;
   totalContributors: number;
 }
+
+// New types for the dual mode system
+export interface GuestRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  description: string;
+  html_url: string;
+  stargazers_count: number;
+  forks_count: number;
+  open_issues_count: number;
+  language: string;
+  updated_at: string;
+  contributors: number;
+  stats: RepoStats[];
+}
+
+export interface GitHubUser {
+  id: number;
+  login: string;
+  email: string;
+  avatar_url: string;
+  name: string;
+}
+
+export interface OAuthUrl {
+  url: string;
+  state: string;
+}
+
+export type AppMode = "guest" | "connected";

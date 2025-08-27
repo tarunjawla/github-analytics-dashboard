@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { Repository, RepoStats } from "../types";
+import type { Repository, RepoStats, GuestRepo, AppMode } from "../types";
 import { apiService } from "../services/api";
 
 interface RepoState {
+  mode: AppMode;
   repositories: Repository[];
+  guestRepos: GuestRepo[];
   repoStats: RepoStats[];
   loading: boolean;
   error: string | null;
@@ -18,10 +20,19 @@ interface RepoState {
 }
 
 interface RepoActions {
-  fetchRepos: () => Promise<void>;
-  addRepo: (repoName: string) => Promise<void>;
-  fetchRepoStats: (repoName: string) => Promise<void>;
-  fetchAllRepoStats: () => Promise<void>;
+  setMode: (mode: AppMode) => void;
+
+  // Guest mode actions
+  addRepoGuest: (repoName: string) => Promise<void>;
+  fetchGuestRepoStats: () => Promise<void>;
+
+  // Connected mode actions
+  connectGitHub: () => Promise<void>;
+  fetchUserRepositories: () => Promise<void>;
+  syncUserRepositories: () => Promise<void>;
+  fetchUserRepoStats: () => Promise<void>;
+
+  // Common actions
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -34,7 +45,9 @@ export const useRepoStore = create<RepoStore>()(
   devtools(
     (set, get) => ({
       // Initial state
+      mode: "guest",
       repositories: [],
+      guestRepos: [],
       repoStats: [],
       loading: false,
       error: null,
@@ -47,33 +60,19 @@ export const useRepoStore = create<RepoStore>()(
       },
 
       // Actions
+      setMode: (mode: AppMode) => set({ mode }),
+
       setLoading: (loading: boolean) => set({ loading }),
       setError: (error: string | null) => set({ error }),
       clearError: () => set({ error: null }),
 
-      fetchRepos: async () => {
+      // Guest mode actions
+      addRepoGuest: async (repoName: string) => {
         try {
           set({ loading: true, error: null });
-          const response = await apiService.getRepos();
-          set({ repositories: response.data });
-          get().calculateDashboardStats();
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch repositories";
-          set({ error: errorMessage });
-        } finally {
-          set({ loading: false });
-        }
-      },
-
-      addRepo: async (repoName: string) => {
-        try {
-          set({ loading: true, error: null });
-          const response = await apiService.addRepo(repoName);
+          const repo = await apiService.addRepoGuest(repoName);
           set((state) => ({
-            repositories: [...state.repositories, response.data],
+            guestRepos: [...state.guestRepos, repo],
           }));
           get().calculateDashboardStats();
         } catch (error) {
@@ -85,16 +84,12 @@ export const useRepoStore = create<RepoStore>()(
         }
       },
 
-      fetchRepoStats: async (repoName: string) => {
+      fetchGuestRepoStats: async () => {
         try {
           set({ loading: true, error: null });
-          const response = await apiService.getRepoStats(repoName);
-          set((state) => ({
-            repoStats: [
-              ...state.repoStats.filter((stat) => stat.repo_name !== repoName),
-              ...response.data,
-            ],
-          }));
+          const stats = await apiService.getGuestRepoStats();
+          set({ repoStats: stats });
+          get().calculateDashboardStats();
         } catch (error) {
           const errorMessage =
             error instanceof Error
@@ -106,16 +101,73 @@ export const useRepoStore = create<RepoStore>()(
         }
       },
 
-      fetchAllRepoStats: async () => {
+      // Connected mode actions
+      connectGitHub: async () => {
         try {
           set({ loading: true, error: null });
-          const response = await apiService.getAllRepoStats();
-          set({ repoStats: response.data });
+          const oauthData = await apiService.getOAuthUrl();
+
+          // Store state for OAuth callback
+          localStorage.setItem("oauth_state", oauthData.state);
+
+          // Redirect to GitHub OAuth
+          window.location.href = oauthData.url;
         } catch (error) {
           const errorMessage =
             error instanceof Error
               ? error.message
-              : "Failed to fetch repository stats";
+              : "Failed to connect to GitHub";
+          set({ error: errorMessage });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      fetchUserRepositories: async () => {
+        try {
+          set({ loading: true, error: null });
+          const repos = await apiService.getUserRepositories();
+          set({ repositories: repos });
+          get().calculateDashboardStats();
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch user repositories";
+          set({ error: errorMessage });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      syncUserRepositories: async () => {
+        try {
+          set({ loading: true, error: null });
+          await apiService.syncUserRepositories();
+          // Refresh repositories after sync
+          await get().fetchUserRepositories();
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to sync repositories";
+          set({ error: errorMessage });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      fetchUserRepoStats: async () => {
+        try {
+          set({ loading: true, error: null });
+          const stats = await apiService.getUserRepoStats();
+          set({ repoStats: stats });
+          get().calculateDashboardStats();
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch user repository stats";
           set({ error: errorMessage });
         } finally {
           set({ loading: false });
@@ -123,38 +175,64 @@ export const useRepoStore = create<RepoStore>()(
       },
 
       calculateDashboardStats: () => {
-        const { repositories, repoStats } = get();
+        const { mode, repositories, guestRepos, repoStats } = get();
 
-        const totalRepos = repositories.length;
-        const totalStars = repositories.reduce(
-          (sum, repo) => sum + repo.stargazers_count,
-          0
-        );
-        const totalForks = repositories.reduce(
-          (sum, repo) => sum + repo.forks_count,
-          0
-        );
-        const totalIssues = repositories.reduce(
-          (sum, repo) => sum + repo.open_issues_count,
-          0
-        );
+        let totalRepos = 0;
+        let totalStars = 0;
+        let totalForks = 0;
+        let totalIssues = 0;
+        let totalContributors = 0;
 
-        // Get the latest stats for each repo to calculate total contributors
-        const latestStats = new Map<string, RepoStats>();
-        repoStats.forEach((stat) => {
-          const existing = latestStats.get(stat.repo_name);
-          if (
-            !existing ||
-            new Date(stat.timestamp) > new Date(existing.timestamp)
-          ) {
-            latestStats.set(stat.repo_name, stat);
-          }
-        });
+        if (mode === "guest") {
+          totalRepos = guestRepos.length;
+          totalStars = guestRepos.reduce(
+            (sum, repo) => sum + repo.stargazers_count,
+            0
+          );
+          totalForks = guestRepos.reduce(
+            (sum, repo) => sum + repo.forks_count,
+            0
+          );
+          totalIssues = guestRepos.reduce(
+            (sum, repo) => sum + repo.open_issues_count,
+            0
+          );
+          totalContributors = guestRepos.reduce(
+            (sum, repo) => sum + repo.contributors,
+            0
+          );
+        } else {
+          totalRepos = repositories.length;
+          totalStars = repositories.reduce(
+            (sum, repo) => sum + repo.stargazers_count,
+            0
+          );
+          totalForks = repositories.reduce(
+            (sum, repo) => sum + repo.forks_count,
+            0
+          );
+          totalIssues = repositories.reduce(
+            (sum, repo) => sum + repo.open_issues_count,
+            0
+          );
 
-        const totalContributors = Array.from(latestStats.values()).reduce(
-          (sum, stat) => sum + stat.contributors,
-          0
-        );
+          // Get the latest stats for each repo to calculate total contributors
+          const latestStats = new Map<string, RepoStats>();
+          repoStats.forEach((stat) => {
+            const existing = latestStats.get(stat.repo_name);
+            if (
+              !existing ||
+              new Date(stat.timestamp) > new Date(existing.timestamp)
+            ) {
+              latestStats.set(stat.repo_name, stat);
+            }
+          });
+
+          totalContributors = Array.from(latestStats.values()).reduce(
+            (sum, stat) => sum + stat.contributors,
+            0
+          );
+        }
 
         set({
           dashboardStats: {

@@ -1,201 +1,196 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Cron, CronExpression } from "@nestjs/schedule";
-import { RepoStats } from "../../common/entities/repo-stats.entity";
-import { GitHubService, GitHubRepo } from "../github/github.service";
-import { AddRepoDto, AddRepoResponseDto } from "../../common/dto/add-repo.dto";
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { RepoStats } from '../../common/entities/repo-stats.entity';
+import { User } from '../../common/entities/user.entity';
+import { Repository as RepoEntity } from '../../common/entities/repository.entity';
+import { GitHubOAuthService } from '../../common/utils/github-oauth.service';
+import { AddRepoDto } from '../../common/dto/add-repo.dto';
+import { GitHubService } from '../../common/utils/github.service';
 
 @Injectable()
 export class ReposService {
   private readonly logger = new Logger(ReposService.name);
-  private readonly trackedRepos = new Set<string>();
 
   constructor(
     @InjectRepository(RepoStats)
     private repoStatsRepository: Repository<RepoStats>,
-    private githubService: GitHubService
-  ) {
-    this.initializeTrackedRepos();
-  }
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(RepoEntity)
+    private repositoryRepository: Repository<RepoEntity>,
+    private githubOAuthService: GitHubOAuthService,
+    private githubService: GitHubService,
+  ) {}
 
-  private async initializeTrackedRepos() {
-    try {
-      const repos = await this.repoStatsRepository
-        .createQueryBuilder("stats")
-        .select("DISTINCT stats.repo_name", "repo_name")
-        .getRawMany();
-
-      repos.forEach(({ repo_name }) => this.trackedRepos.add(repo_name));
-      this.logger.log(
-        `Initialized ${this.trackedRepos.size} tracked repositories`
-      );
-    } catch (error) {
-      this.logger.error("Failed to initialize tracked repos:", error);
-    }
-  }
-
-  async addRepo(addRepoDto: AddRepoDto): Promise<AddRepoResponseDto> {
+  // Guest mode: Add repo and get stats without authentication
+  async addRepoGuest(addRepoDto: AddRepoDto) {
     const { name } = addRepoDto;
-
-    // Check if repo is already being tracked
-    if (this.trackedRepos.has(name)) {
-      throw new Error(`Repository ${name} is already being tracked`);
-    }
+    const [owner, repo] = name.split('/');
 
     try {
-      // Fetch repository data from GitHub
-      const [owner, repo] = name.split("/");
-      const { repo: githubRepo, contributors } =
-        await this.githubService.getRepositoryStats(owner, repo);
+      // Fetch repo data from GitHub
+      const repoData = await this.githubService.getRepository(owner, repo);
+      const contributorsCount = await this.githubService.getContributorsCount(owner, repo);
 
-      // Create initial stats record
-      const repoStats = this.repoStatsRepository.create({
+      // Create stats entry
+      const stats = this.repoStatsRepository.create({
         repo_name: name,
-        stars: githubRepo.stargazers_count,
-        forks: githubRepo.forks_count,
-        issues: githubRepo.open_issues_count,
-        contributors: contributors.length,
-        language: githubRepo.language,
-        description: githubRepo.description,
-        html_url: githubRepo.html_url,
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        issues: repoData.open_issues_count,
+        contributors: contributorsCount,
       });
 
-      await this.repoStatsRepository.save(repoStats);
-      this.trackedRepos.add(name);
-
-      this.logger.log(`Added repository ${name} to tracking`);
+      await this.repoStatsRepository.save(stats);
 
       return {
-        id: githubRepo.id,
-        name: githubRepo.name,
-        full_name: githubRepo.full_name,
-        description: githubRepo.description,
-        html_url: githubRepo.html_url,
-        stargazers_count: githubRepo.stargazers_count,
-        forks_count: githubRepo.forks_count,
-        open_issues_count: githubRepo.open_issues_count,
-        language: githubRepo.language,
-        updated_at: githubRepo.updated_at,
+        ...repoData,
+        contributors: contributorsCount,
+        stats: [stats],
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error(`Failed to add repository ${name}:`, error);
-      throw new Error(`Failed to add repository: ${errorMessage}`);
-    }
-  }
-
-  async getRepos(): Promise<AddRepoResponseDto[]> {
-    try {
-      const latestStats = await this.repoStatsRepository
-        .createQueryBuilder("stats")
-        .select("DISTINCT ON (stats.repo_name) stats.*")
-        .orderBy("stats.repo_name")
-        .addOrderBy("stats.timestamp", "DESC")
-        .getRawMany();
-
-      return latestStats.map((stats) => ({
-        id: stats.id,
-        name: stats.repo_name.split("/")[1],
-        full_name: stats.repo_name,
-        description: stats.description,
-        html_url: stats.html_url,
-        stargazers_count: stats.stars,
-        forks_count: stats.forks,
-        open_issues_count: stats.issues,
-        language: stats.language,
-        updated_at: stats.updated_at,
-      }));
-    } catch (error) {
-      this.logger.error("Failed to get repositories:", error);
-      throw new Error("Failed to get repositories");
-    }
-  }
-
-  async getRepoStats(repoName: string): Promise<RepoStats[]> {
-    try {
-      const stats = await this.repoStatsRepository.find({
-        where: { repo_name: repoName },
-        order: { timestamp: "DESC" },
-      });
-
-      if (stats.length === 0) {
-        throw new NotFoundException(
-          `No stats found for repository ${repoName}`
-        );
-      }
-
-      return stats;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      this.logger.error(
-        `Failed to get stats for repository ${repoName}:`,
-        error
-      );
-      throw new Error("Failed to get repository stats");
-    }
-  }
-
-  async getAllRepoStats(): Promise<RepoStats[]> {
-    try {
-      return await this.repoStatsRepository.find({
-        order: { timestamp: "DESC" },
-      });
-    } catch (error) {
-      this.logger.error("Failed to get all repository stats:", error);
-      throw new Error("Failed to get all repository stats");
-    }
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async updateAllRepoStats() {
-    this.logger.log("Starting daily repository stats update");
-
-    for (const repoName of this.trackedRepos) {
-      try {
-        await this.updateRepoStats(repoName);
-        // Add delay to avoid hitting GitHub API rate limits
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        this.logger.error(`Failed to update stats for ${repoName}:`, error);
-      }
-    }
-
-    this.logger.log("Completed daily repository stats update");
-  }
-
-  private async updateRepoStats(repoName: string): Promise<void> {
-    try {
-      const [owner, repo] = repoName.split("/");
-      const { repo: githubRepo, contributors } =
-        await this.githubService.getRepositoryStats(owner, repo);
-
-      const repoStats = this.repoStatsRepository.create({
-        repo_name: repoName,
-        stars: githubRepo.stargazers_count,
-        forks: githubRepo.forks_count,
-        issues: githubRepo.open_issues_count,
-        contributors: contributors.length,
-        language: githubRepo.language,
-        description: githubRepo.description,
-        html_url: githubRepo.html_url,
-      });
-
-      await this.repoStatsRepository.save(repoStats);
-      this.logger.log(`Updated stats for repository ${repoName}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to update stats for repository ${repoName}:`,
-        error
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to add repo ${name}: ${errorMessage}`);
       throw error;
     }
   }
 
-  async getTrackedRepos(): Promise<string[]> {
-    return Array.from(this.trackedRepos);
+  // Connected mode: Get all repos for authenticated user
+  async getUserRepositories(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['repositories'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user.repositories;
+  }
+
+  // Connected mode: Sync user repositories from GitHub
+  async syncUserRepositories(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user || !user.access_token) {
+      throw new NotFoundException('User not found or not authenticated');
+    }
+
+    try {
+      // Fetch repos from GitHub
+      const githubRepos = await this.githubOAuthService.getUserRepositories(
+        user.access_token,
+        user.username
+      );
+
+      // Update or create repositories
+      for (const githubRepo of githubRepos) {
+        let repo = await this.repositoryRepository.findOne({
+          where: { github_id: githubRepo.id, user_id: userId },
+        });
+
+        if (repo) {
+          // Update existing repo
+          Object.assign(repo, {
+            name: githubRepo.name,
+            full_name: githubRepo.full_name,
+            description: githubRepo.description,
+            html_url: githubRepo.html_url,
+            stargazers_count: githubRepo.stargazers_count,
+            forks_count: githubRepo.forks_count,
+            open_issues_count: githubRepo.open_issues_count,
+            language: githubRepo.language,
+            updated_at: new Date(githubRepo.updated_at),
+            last_synced: new Date(),
+          });
+        } else {
+          // Create new repo
+          repo = this.repositoryRepository.create({
+            github_id: githubRepo.id,
+            name: githubRepo.name,
+            full_name: githubRepo.full_name,
+            description: githubRepo.description,
+            html_url: githubRepo.html_url,
+            stargazers_count: githubRepo.stargazers_count,
+            forks_count: githubRepo.forks_count,
+            open_issues_count: githubRepo.open_issues_count,
+            language: githubRepo.language,
+            updated_at: new Date(githubRepo.updated_at),
+            last_synced: new Date(),
+            user_id: userId,
+          });
+        }
+
+        await this.repositoryRepository.save(repo);
+
+        // Create stats entry
+        const stats = this.repoStatsRepository.create({
+          repo_name: githubRepo.full_name,
+          stars: githubRepo.stargazers_count,
+          forks: githubRepo.forks_count,
+          issues: githubRepo.open_issues_count,
+          contributors: 0, // Will be fetched separately
+          repository_id: repo.id,
+        });
+
+        await this.repoStatsRepository.save(stats);
+      }
+
+      return { message: 'Repositories synced successfully', count: githubRepos.length };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to sync repositories for user ${userId}: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  // Get stats for a specific repository
+  async getRepoStats(repoName: string, userId?: number) {
+    let query = this.repoStatsRepository
+      .createQueryBuilder('stats')
+      .where('stats.repo_name = :repoName', { repoName })
+      .orderBy('stats.timestamp', 'DESC');
+
+    if (userId) {
+      // For connected users, check if they have access to this repo
+      query = query
+        .innerJoin('stats.repository', 'repo')
+        .andWhere('repo.user_id = :userId', { userId });
+    }
+
+    const stats = await query.getMany();
+    
+    if (stats.length === 0) {
+      throw new NotFoundException(`No stats found for repository ${repoName}`);
+    }
+
+    return stats;
+  }
+
+  // Get all stats for connected user
+  async getAllUserRepoStats(userId: number) {
+    const stats = await this.repoStatsRepository
+      .createQueryBuilder('stats')
+      .innerJoin('stats.repository', 'repo')
+      .where('repo.user_id = :userId', { userId })
+      .orderBy('stats.timestamp', 'DESC')
+      .getMany();
+
+    return stats;
+  }
+
+  // Get all guest repo stats (no user authentication)
+  async getAllGuestRepoStats() {
+    const stats = await this.repoStatsRepository
+      .createQueryBuilder('stats')
+      .where('stats.repository_id IS NULL')
+      .orderBy('stats.timestamp', 'DESC')
+      .getMany();
+
+    return stats;
   }
 }

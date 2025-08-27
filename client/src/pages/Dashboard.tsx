@@ -14,14 +14,13 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Github } from "lucide-react";
 import { useRepoStore } from "../store/useRepoStore";
 import {
   formatNumber,
   getLatestStats,
   formatTimeSeriesData,
 } from "../utils/chartHelpers";
-import type { ChartDataPoint } from "../types";
+import type { ChartDataPoint, AppMode } from "../types";
 
 const COLORS = [
   "#3B82F6",
@@ -34,14 +33,20 @@ const COLORS = [
 
 const Dashboard: React.FC = () => {
   const {
+    mode,
     repositories,
+    guestRepos,
     repoStats,
     loading,
     error,
     dashboardStats,
-    fetchRepos,
-    fetchAllRepoStats,
-    addRepo,
+    setMode,
+    addRepoGuest,
+    fetchGuestRepoStats,
+    connectGitHub,
+    fetchUserRepositories,
+    syncUserRepositories,
+    fetchUserRepoStats,
     clearError,
   } = useRepoStore();
 
@@ -51,18 +56,33 @@ const Dashboard: React.FC = () => {
   >("stars");
 
   useEffect(() => {
-    fetchRepos();
-    fetchAllRepoStats();
-  }, [fetchRepos, fetchAllRepoStats]);
+    if (mode === "guest") {
+      fetchGuestRepoStats();
+    } else {
+      fetchUserRepositories();
+      fetchUserRepoStats();
+    }
+  }, [mode, fetchGuestRepoStats, fetchUserRepositories, fetchUserRepoStats]);
 
   const handleAddRepo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newRepoName.trim()) {
-      await addRepo(newRepoName.trim());
+      if (mode === "guest") {
+        await addRepoGuest(newRepoName.trim());
+      }
       setNewRepoName("");
     }
   };
 
+  const handleConnectGitHub = async () => {
+    await connectGitHub();
+  };
+
+  const handleModeSwitch = (newMode: AppMode) => {
+    setMode(newMode);
+  };
+
+  const currentRepos = mode === "guest" ? guestRepos : repositories;
   const latestStats = getLatestStats(repoStats);
   const timeSeriesData = formatTimeSeriesData(repoStats, selectedMetric);
 
@@ -83,7 +103,7 @@ const Dashboard: React.FC = () => {
     { name: "Jun", value: 1600, date: "2024-06-01" },
   ];
 
-  if (loading && repositories.length === 0) {
+  if (loading && currentRepos.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -98,45 +118,73 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="flex justify-between items-center py-6">
-      
-      {/* Logo + Title */}
-      <div className="flex items-center space-x-4">
-        <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center shadow-md">
-          <Github className="w-7 h-7 text-white" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-            GitHub Analytics Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Track your repository metrics and performance
-          </p>
-        </div>
-      </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                GitHub Analytics Dashboard
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Track your repository metrics and performance
+              </p>
+            </div>
 
-      {/* Add Repo Form */}
-      <div className="flex items-center space-x-4">
-        <form onSubmit={handleAddRepo} className="flex space-x-2">
-          <input
-            type="text"
-            value={newRepoName}
-            onChange={(e) => setNewRepoName(e.target.value)}
-            placeholder="Enter repo name (e.g., facebook/react)"
-            className="border border-gray-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition"
-          >
-            Add Repo
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-</header>
+            {/* Mode Switch */}
+            <div className="flex items-center space-x-4">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => handleModeSwitch("guest")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mode === "guest"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Guest Mode
+                </button>
+                <button
+                  onClick={() => handleModeSwitch("connected")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mode === "connected"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Connected
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              {mode === "guest" ? (
+                <form onSubmit={handleAddRepo} className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={newRepoName}
+                    onChange={(e) => setNewRepoName(e.target.value)}
+                    placeholder="Enter repo name (e.g., facebook/react)"
+                    className="input w-64"
+                  />
+                  <button type="submit" className="btn-primary">
+                    Add Repo
+                  </button>
+                </form>
+              ) : (
+                <div className="flex space-x-2">
+                  <button onClick={handleConnectGitHub} className="btn-primary">
+                    Connect GitHub
+                  </button>
+                  <button
+                    onClick={syncUserRepositories}
+                    className="btn-secondary"
+                  >
+                    Sync Repos
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Error Alert */}
       {error && (
@@ -184,6 +232,39 @@ const Dashboard: React.FC = () => {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Mode Info */}
+        <div className="mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">
+                  {mode === "guest" ? "Guest Mode" : "Connected Mode"}
+                </h3>
+                <p className="mt-1 text-sm text-blue-700">
+                  {mode === "guest"
+                    ? "Add individual repositories to track their stats. Data is stored locally."
+                    : "Connect your GitHub account to automatically sync all your repositories."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="card">
@@ -330,8 +411,8 @@ const Dashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={
-                    repositories.length > 0
-                      ? repositories.slice(0, 10)
+                    currentRepos.length > 0
+                      ? currentRepos.slice(0, 10)
                       : dummyData
                   }
                 >
@@ -403,8 +484,8 @@ const Dashboard: React.FC = () => {
                 <PieChart>
                   <Pie
                     data={
-                      repositories.length > 0
-                        ? repositories.slice(0, 6)
+                      currentRepos.length > 0
+                        ? currentRepos.slice(0, 6)
                         : dummyData
                     }
                     cx="50%"
@@ -417,8 +498,8 @@ const Dashboard: React.FC = () => {
                     fill="#8884d8"
                     dataKey="stargazers_count"
                   >
-                    {repositories.length > 0
-                      ? repositories
+                    {currentRepos.length > 0
+                      ? currentRepos
                           .slice(0, 6)
                           .map((entry, index) => (
                             <Cell
@@ -447,8 +528,8 @@ const Dashboard: React.FC = () => {
               Recent Activity
             </h3>
             <div className="space-y-4">
-              {repositories.length > 0 ? (
-                repositories.slice(0, 5).map((repo) => (
+              {currentRepos.length > 0 ? (
+                currentRepos.slice(0, 5).map((repo) => (
                   <div
                     key={repo.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -488,9 +569,15 @@ const Dashboard: React.FC = () => {
                       d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                     />
                   </svg>
-                  <p className="mt-2">No repositories added yet</p>
+                  <p className="mt-2">
+                    {mode === "guest"
+                      ? "No repositories added yet"
+                      : "No repositories connected yet"}
+                  </p>
                   <p className="text-sm">
-                    Add a repository to see activity here
+                    {mode === "guest"
+                      ? "Add a repository to see activity here"
+                      : "Connect your GitHub account to see your repositories"}
                   </p>
                 </div>
               )}

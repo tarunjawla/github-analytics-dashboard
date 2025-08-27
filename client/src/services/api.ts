@@ -1,6 +1,12 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosResponse } from "axios";
-import type { ApiResponse, RepoStats, Repository } from "../types";
+import type {
+  ApiResponse,
+  RepoStats,
+  Repository,
+  GuestRepo,
+  OAuthUrl,
+} from "../types";
 
 class ApiService {
   private api: AxiosInstance;
@@ -74,26 +80,68 @@ class ApiService {
     }
   }
 
-  // Repository endpoints
-  async getRepos(): Promise<ApiResponse<Repository[]>> {
-    return this.get<Repository[]>("/repos");
+  // Guest mode endpoints
+  async addRepoGuest(repoName: string): Promise<GuestRepo> {
+    const response = await this.post<GuestRepo>("/repos/guest", {
+      name: repoName,
+    });
+    return response.data;
   }
 
-  async addRepo(repoName: string): Promise<ApiResponse<Repository>> {
-    return this.post<Repository>("/repos", { name: repoName });
+  async getGuestRepoStats(): Promise<RepoStats[]> {
+    const response = await this.get<RepoStats[]>("/repos/guest/stats");
+    return response.data;
   }
 
-  async getRepoStats(repoName: string): Promise<ApiResponse<RepoStats[]>> {
-    return this.get<RepoStats[]>(`/repos/${repoName}/stats`);
+  async getGuestRepoStatsByName(repoName: string): Promise<RepoStats[]> {
+    const response = await this.get<RepoStats[]>(
+      `/repos/guest/${repoName}/stats`
+    );
+    return response.data;
   }
 
-  async getAllRepoStats(): Promise<ApiResponse<RepoStats[]>> {
-    return this.get<RepoStats[]>("/repos/stats");
+  // Connected mode endpoints
+  async getOAuthUrl(): Promise<OAuthUrl> {
+    const response = await this.get<OAuthUrl>("/repos/auth/url");
+    return response.data;
+  }
+
+  async handleOAuthCallback(
+    code: string,
+    state: string
+  ): Promise<ApiResponse<{ message: string }>> {
+    return this.post<{ message: string }>("/repos/auth/callback", {
+      code,
+      state,
+    });
+  }
+
+  async getUserRepositories(): Promise<Repository[]> {
+    const response = await this.get<Repository[]>("/repos/user");
+    return response.data;
+  }
+
+  async syncUserRepositories(): Promise<
+    ApiResponse<{ message: string; count: number }>
+  > {
+    return this.post<{ message: string; count: number }>("/repos/user/sync");
+  }
+
+  async getUserRepoStats(): Promise<RepoStats[]> {
+    const response = await this.get<RepoStats[]>("/repos/user/stats");
+    return response.data;
+  }
+
+  async getUserRepoStatsByName(repoName: string): Promise<RepoStats[]> {
+    const response = await this.get<RepoStats[]>(
+      `/repos/user/${repoName}/stats`
+    );
+    return response.data;
   }
 
   // Health check
   async healthCheck(): Promise<ApiResponse<{ status: string }>> {
-    return this.get<{ status: string }>("/health");
+    return this.get<{ status: string }>("/repos/health");
   }
 }
 

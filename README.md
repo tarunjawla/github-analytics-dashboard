@@ -1,92 +1,77 @@
-# 🚀 GitHub Analytics Dashboard
+# GitHub Analytics Dashboard
 
-A full-stack web application for tracking and visualizing GitHub repository metrics and performance over time. Built with modern technologies including React, TypeScript, NestJS, and PostgreSQL.
+A full-stack web application for tracking and analyzing GitHub repository metrics with beautiful charts and insights.
 
-## ✨ Features
+## Features
 
-- **📊 Real-time Analytics**: Track stars, forks, issues, and contributors for GitHub repositories
-- **🔄 Automated Updates**: Daily cron jobs to fetch latest repository statistics
-- **📈 Beautiful Charts**: Interactive visualizations using Recharts
-- **🎨 Modern UI**: Responsive design with TailwindCSS
-- **🔒 Secure API**: Input validation and error handling
-- **📱 Mobile Friendly**: Responsive design across all devices
+### 🎯 Dual Mode System
 
-## 🏗️ Architecture
+- **Guest Mode**: Add individual repositories and track their stats without authentication
+- **Connected Mode**: Connect your GitHub account to automatically sync all your repositories
 
-```
-github-analytics-dashboard/
-├── client/                 # React + TypeScript frontend
-│   ├── src/
-│   │   ├── components/    # Reusable UI components
-│   │   ├── pages/         # Page components
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── store/         # Zustand state management
-│   │   ├── services/      # API service layer
-│   │   ├── types/         # TypeScript interfaces
-│   │   └── utils/         # Utility functions
-│   └── package.json
-├── server/                 # NestJS + TypeScript backend
-│   ├── src/
-│   │   ├── modules/       # Feature modules
-│   │   ├── common/        # Shared utilities
-│   │   ├── config/        # Configuration files
-│   │   └── main.ts        # Application entry point
-│   └── package.json
-├── docker-compose.yml      # PostgreSQL + pgAdmin setup
-└── package.json           # Root package.json with scripts
-```
+### 📊 Analytics Dashboard
 
-## 🛠️ Tech Stack
+- Real-time repository statistics (stars, forks, issues, contributors)
+- Interactive charts using Recharts
+- Time-series data visualization
+- Repository comparison charts
+- Responsive design for all devices
 
-### Frontend
+### 🚀 Tech Stack
 
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **TailwindCSS** for styling
-- **Zustand** for state management
-- **React Router v6** for navigation
-- **Recharts** for data visualization
-- **Axios** for HTTP requests
+**Frontend:**
 
-### Backend
+- React 18 + TypeScript
+- Vite for fast development
+- TailwindCSS for styling
+- Zustand for state management
+- Recharts for data visualization
+- React Router for navigation
 
-- **NestJS** with TypeScript
-- **TypeORM** for database operations
-- **PostgreSQL** as the primary database
-- **Zod** for schema validation
-- **Nest Schedule** for cron jobs
-- **Axios** for GitHub API calls
+**Backend:**
 
-### Infrastructure
+- NestJS + TypeScript
+- TypeORM for database management
+- PostgreSQL database
+- GitHub API integration
+- OAuth authentication
 
-- **Docker Compose** for local development
-- **PostgreSQL 15** for data storage
-- **pgAdmin** for database management
+**Infrastructure:**
 
-## 🚀 Quick Start
+- Docker Compose for database
+- pgAdmin for database management
 
-### Prerequisites
+## Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+
 - Docker and Docker Compose
-- Git
+- PostgreSQL (via Docker)
+- GitHub Personal Access Token (optional, for higher API limits)
 
-### 1. Clone the Repository
+## Quick Start
+
+### 1. Clone and Install
 
 ```bash
 git clone <repository-url>
 cd github-analytics-dashboard
-```
-
-### 2. Install Dependencies
-
-```bash
 npm run install:all
 ```
 
-### 3. Set Up Environment Variables
+### 2. Start Database
 
-#### Backend (.env file in server/ directory)
+```bash
+npm run db:up
+```
+
+This will start:
+
+- PostgreSQL on port 5432
+- pgAdmin on port 5050 (admin@admin.com / admin)
+
+### 3. Environment Setup
+
+#### Backend (.env in server/ directory)
 
 ```bash
 cd server
@@ -103,15 +88,20 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=github_analytics
 
-# GitHub API Configuration
+# GitHub API Configuration (optional)
 GITHUB_TOKEN=your_github_personal_access_token_here
+
+# GitHub OAuth (for connected mode)
+GITHUB_CLIENT_ID=your_github_oauth_app_client_id
+GITHUB_CLIENT_SECRET=your_github_oauth_app_client_secret
+GITHUB_REDIRECT_URI=http://localhost:5173/auth/callback
 
 # Server Configuration
 PORT=3000
 NODE_ENV=development
 ```
 
-#### Frontend (.env file in client/ directory)
+#### Frontend (.env in client/ directory)
 
 ```bash
 cd client
@@ -124,162 +114,141 @@ Edit `.env`:
 VITE_API_URL=http://localhost:3000
 ```
 
-### 4. Start the Database
+### 4. Start Development Servers
 
 ```bash
-npm run db:up
-```
-
-This will start:
-
-- PostgreSQL on port 5432
-- pgAdmin on port 5050 (admin@admin.com / admin)
-
-### 5. Start the Development Servers
-
-#### Option A: Start Both Frontend and Backend
-
-```bash
+# Start both frontend and backend
 npm run dev
+
+# Or start them separately:
+npm run server:dev  # Backend on port 3000
+npm run client:dev  # Frontend on port 5173
 ```
 
-#### Option B: Start Separately
-
-```bash
-# Terminal 1 - Backend
-npm run server:dev
-
-# Terminal 2 - Frontend
-npm run client:dev
-```
-
-### 6. Access the Application
+### 5. Access the Application
 
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3000
 - **pgAdmin**: http://localhost:5050
 
-## 📖 API Endpoints
+## Usage
+
+### Guest Mode
+
+1. Switch to "Guest Mode" using the toggle in the header
+2. Enter repository names in format `owner/repo` (e.g., `facebook/react`)
+3. View real-time statistics and charts
+4. Data is stored locally in the database
+
+### Connected Mode
+
+1. Switch to "Connected Mode"
+2. Click "Connect GitHub" to authenticate
+3. Your repositories will be automatically synced
+4. View comprehensive analytics for all your repos
+
+## API Endpoints
+
+### Guest Mode
+
+- `POST /repos/guest` - Add repository for tracking
+- `GET /repos/guest/stats` - Get all guest repository stats
+- `GET /repos/guest/:name/stats` - Get stats for specific repository
+
+### Connected Mode
+
+- `GET /repos/auth/url` - Get GitHub OAuth URL
+- `POST /repos/auth/callback` - Handle OAuth callback
+- `GET /repos/user` - Get user repositories
+- `POST /repos/user/sync` - Sync repositories from GitHub
+- `GET /repos/user/stats` - Get all user repository stats
 
 ### Health Check
 
-- `GET /api/health` - Service health status
+- `GET /repos/health` - API health status
 
-### Repositories
+## Development
 
-- `GET /api/repos` - List all tracked repositories
-- `POST /api/repos` - Add a new repository to track
-- `GET /api/repos/:name/stats` - Get stats for a specific repository
-- `GET /api/repos/stats` - Get stats for all repositories
-- `GET /api/repos/tracked/list` - List tracked repository names
+### Project Structure
 
-## 🔧 Development
+```
+github-analytics-dashboard/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── pages/         # Page components
+│   │   ├── hooks/         # Custom React hooks
+│   │   ├── store/         # Zustand state management
+│   │   ├── services/      # API service layer
+│   │   ├── types/         # TypeScript type definitions
+│   │   └── utils/         # Utility functions
+│   └── package.json
+├── server/                 # NestJS backend
+│   ├── src/
+│   │   ├── modules/       # Feature modules
+│   │   ├── common/        # Shared utilities
+│   │   └── config/        # Configuration files
+│   └── package.json
+├── docker-compose.yml      # Database services
+└── package.json            # Root package.json
+```
 
 ### Available Scripts
 
-#### Root Level
-
 ```bash
-npm run dev              # Start both frontend and backend
-npm run client:dev       # Start React development server
-npm run server:dev       # Start NestJS development server
-npm run db:up            # Start PostgreSQL and pgAdmin
-npm run db:down          # Stop database services
-npm run build            # Build both frontend and backend
-npm run lint             # Run linting on both projects
-npm run format           # Format code in both projects
+# Development
+npm run dev                 # Start both frontend and backend
+npm run client:dev         # Start frontend only
+npm run server:dev         # Start backend only
+
+# Database
+npm run db:up              # Start database services
+npm run db:down            # Stop database services
+npm run db:reset           # Reset database (removes all data)
+
+# Build
+npm run build:all          # Build both frontend and backend
+npm run install:all        # Install dependencies for all packages
 ```
 
-#### Frontend (client/)
+### Database Schema
 
-```bash
-npm run dev              # Start Vite dev server
-npm run build            # Build for production
-npm run preview          # Preview production build
-npm run lint             # Run ESLint
-```
+#### Users Table
 
-#### Backend (server/)
+- `id` - Primary key
+- `github_id` - GitHub user ID
+- `username` - GitHub username
+- `email` - GitHub email
+- `access_token` - OAuth access token
+- `created_at`, `updated_at` - Timestamps
 
-```bash
-npm run start:dev        # Start in watch mode
-npm run build            # Build for production
-npm run start:prod       # Start production server
-npm run lint             # Run ESLint
-npm run test             # Run tests
-```
+#### Repositories Table
 
-### Database Management
+- `id` - Primary key
+- `github_id` - GitHub repository ID
+- `name` - Repository name
+- `full_name` - Full repository name (owner/repo)
+- `description` - Repository description
+- `html_url` - GitHub URL
+- `stargazers_count` - Number of stars
+- `forks_count` - Number of forks
+- `open_issues_count` - Number of open issues
+- `language` - Primary programming language
+- `user_id` - Foreign key to users table
+- `created_at`, `updated_at` - Timestamps
 
-#### Access PostgreSQL
+#### Repo Stats Table
 
-```bash
-# Using psql
-psql -h localhost -U postgres -d github_analytics
+- `id` - Primary key
+- `repo_name` - Repository name
+- `stars` - Current star count
+- `forks` - Current fork count
+- `issues` - Current issue count
+- `contributors` - Number of contributors
+- `repository_id` - Foreign key to repositories table
+- `timestamp` - When stats were recorded
 
-# Using pgAdmin
-# Open http://localhost:5050
-# Login: admin@admin.com / admin
-# Add server: localhost:5432, postgres/postgres
-```
-
-#### Reset Database
-
-```bash
-npm run db:down
-npm run db:up
-```
-
-## 🎯 Usage
-
-### Adding a Repository
-
-1. Navigate to the dashboard
-2. Enter repository name in format: `owner/repo` (e.g., `facebook/react`)
-3. Click "Add Repo"
-4. The system will fetch current stats and start tracking
-
-### Viewing Analytics
-
-- **Overview Cards**: See total counts for all tracked repositories
-- **Stars Comparison**: Bar chart comparing repository popularity
-- **Time Series**: Track metrics over time for selected repositories
-- **Repository Distribution**: Pie chart showing repository breakdown
-- **Recent Activity**: Latest updates and changes
-
-### Automated Updates
-
-The system automatically fetches new statistics daily at midnight using cron jobs. This ensures your dashboard always shows the latest data.
-
-## 🔒 Security
-
-- Input validation using class-validator and Zod
-- CORS configuration for frontend-backend communication
-- Environment variable management
-- Error handling and logging
-
-## 🚀 Deployment
-
-### Production Build
-
-```bash
-npm run build
-```
-
-### Environment Variables
-
-Ensure all environment variables are properly set for production:
-
-- Database connection details
-- GitHub API token
-- CORS origins
-- Port configuration
-
-### Docker Deployment
-
-The application can be containerized using the existing Docker setup or by creating production Docker images.
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -287,53 +256,10 @@ The application can be containerized using the existing Docker setup or by creat
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License.
 
-## 🆘 Troubleshooting
+## Support
 
-### Common Issues
-
-#### Database Connection Failed
-
-- Ensure Docker is running
-- Check if PostgreSQL container is up: `docker ps`
-- Verify environment variables in `.env`
-
-#### GitHub API Rate Limits
-
-- Add a GitHub personal access token to increase rate limits
-- Check the health endpoint for current rate limit status
-
-#### Frontend Can't Connect to Backend
-
-- Verify backend is running on port 3000
-- Check CORS configuration
-- Ensure `VITE_API_URL` is set correctly
-
-#### Build Errors
-
-- Clear node_modules and reinstall: `npm run install:all`
-- Check TypeScript version compatibility
-- Verify all dependencies are installed
-
-### Getting Help
-
-- Check the logs: `npm run db:logs`
-- Review the health endpoint: `GET /api/health`
-- Check browser console for frontend errors
-- Review server logs for backend errors
-
-## 📊 Performance
-
-- **Frontend**: Optimized with Vite and React 18
-- **Backend**: Efficient database queries with TypeORM
-- **Database**: Indexed queries for fast data retrieval
-- **Caching**: In-memory tracking of repository data
-
----
-
-**Happy coding! 🎉**
-
-For more information, check out the individual README files in the `client/` and `server/` directories.
+If you encounter any issues or have questions, please open an issue on GitHub.

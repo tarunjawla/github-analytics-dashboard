@@ -3,34 +3,24 @@
   "version": "1.0.0",
   "description": "Full-stack GitHub Analytics Dashboard with React frontend and NestJS backend",
   "private": true,
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "client:dev": "cd client && npm run dev",
     "server:dev": "cd server && npm run start:dev",
-    "build": "npm run build:server && npm run build:client",
-    "build:server": "cd server && npm run build",
-    "build:client": "cd client && npm run build",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
-    "start": "npm run start:server",
-    "start:server": "cd server && npm run start",
-    "start:client": "cd client && npm run preview",
-    "lint": "npm run lint:server && npm run lint:client",
-    "lint:server": "cd server && npm run lint",
-    "lint:client": "cd client && npm run lint",
-    "format": "npm run format:server && npm run format:client",
-    "format:server": "cd server && npm run format",
-    "format:client": "cd client && npm run format"
+    "build:all": "cd client && npm run build && cd ../server && npm run build",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "start": "concurrently \"cd server && npm run start:prod\" \"cd client && npm run preview\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
