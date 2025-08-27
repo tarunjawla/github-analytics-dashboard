@@ -82,4 +82,39 @@ export class GitHubService {
       return 0;
     }
   }
+
+  async getOpenPullRequestsCount(owner: string, repo: string): Promise<number> {
+    try {
+      // Use per_page=1 so the last page number equals total count
+      const response = await this.api.get(`/repos/${owner}/${repo}/pulls`, {
+        params: { state: 'open', per_page: 1 },
+      });
+
+      const link: string | undefined = response.headers['link'] || response.headers['Link'];
+      if (!link) {
+        // No pagination means either 0 or 1 results
+        // If we requested per_page=1 and got an array, its length is 0 or 1
+        const count = Array.isArray(response.data) ? response.data.length : 0;
+        return count;
+      }
+
+      const match = link.match(/&page=(\d+)>; rel="last"/);
+      if (match && match[1]) {
+        return parseInt(match[1], 10);
+      }
+
+      // Fallback: if rel="last" not present but rel="next" exists, at least >1
+      const nextMatch = link.match(/&page=(\d+)>; rel="next"/);
+      if (nextMatch && nextMatch[1]) {
+        return parseInt(nextMatch[1], 10);
+      }
+
+      // As a final fallback, return 0 if we cannot parse
+      return 0;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to get open PR count for ${owner}/${repo}: ${errorMessage}`);
+      return 0;
+    }
+  }
 } 

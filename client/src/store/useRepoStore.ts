@@ -1,8 +1,8 @@
+import { trim } from "lodash";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { Repository, RepoStats, GuestRepo, AppMode } from "../types";
 import { apiService } from "../services/api";
-import { trim } from "lodash";
+import type { AppMode, GuestRepo, Repository, RepoStats } from "../types";
 
 interface RepoState {
   mode: AppMode;
@@ -16,6 +16,7 @@ interface RepoState {
     totalStars: number;
     totalForks: number;
     totalIssues: number;
+    totalOpenPRs: number;
     totalContributors: number;
   };
 }
@@ -101,6 +102,7 @@ export const useRepoStore = create<RepoStore>()(
         totalStars: 0,
         totalForks: 0,
         totalIssues: 0,
+        totalOpenPRs: 0,
         totalContributors: 0,
       },
 
@@ -228,6 +230,7 @@ export const useRepoStore = create<RepoStore>()(
         let totalStars = 0;
         let totalForks = 0;
         let totalIssues = 0;
+        let totalOpenPRs = 0;
         let totalContributors = 0;
 
         if (mode === "guest") {
@@ -242,6 +245,10 @@ export const useRepoStore = create<RepoStore>()(
           );
           totalIssues = guestRepos.reduce(
             (sum, repo) => sum + repo.open_issues_count,
+            0
+          );
+          totalOpenPRs = guestRepos.reduce(
+            (sum, repo) => sum + (repo.open_prs_count || 0),
             0
           );
           totalContributors = guestRepos.reduce(
@@ -260,6 +267,10 @@ export const useRepoStore = create<RepoStore>()(
           );
           totalIssues = repositories.reduce(
             (sum, repo) => sum + repo.open_issues_count,
+            0
+          );
+          totalOpenPRs = repositories.reduce(
+            (sum, repo) => sum + (repo.open_prs_count || 0),
             0
           );
 
@@ -287,6 +298,7 @@ export const useRepoStore = create<RepoStore>()(
             totalStars,
             totalForks,
             totalIssues,
+            totalOpenPRs,
             totalContributors,
           },
         });

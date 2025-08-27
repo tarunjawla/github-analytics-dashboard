@@ -31,6 +31,8 @@ export class ReposService {
     try {
       // Fetch repo data from GitHub
       const repoData = await this.githubService.getRepository(owner, repo);
+      // Count open PRs and adjust issues to exclude PRs
+      const openPrs = await this.githubService.getOpenPullRequestsCount(owner, repo);
       const contributorsCount = await this.githubService.getContributorsCount(owner, repo);
 
       // Create stats entry
@@ -38,7 +40,7 @@ export class ReposService {
         repo_name: name,
         stars: repoData.stargazers_count,
         forks: repoData.forks_count,
-        issues: repoData.open_issues_count,
+        issues: Math.max(0, repoData.open_issues_count - openPrs),
         contributors: contributorsCount,
       });
 
@@ -46,6 +48,9 @@ export class ReposService {
 
       return {
         ...repoData,
+        // Ensure open issues excludes PRs for client display
+        open_issues_count: Math.max(0, repoData.open_issues_count - openPrs),
+        open_prs_count: openPrs,
         contributors: contributorsCount,
         stats: [stats],
       };

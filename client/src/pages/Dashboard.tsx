@@ -373,6 +373,32 @@ const Dashboard: React.FC = () => {
 
           <div className="card">
             <div className="flex items-center">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <svg
+                  className="h-6 w-6 text-indigo-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16l2-2 2 2 4-4M3 7h18M3 12h18M3 17h18"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Open PRs</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {formatNumber(dashboardStats.totalOpenPRs)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <svg
                   className="h-6 w-6 text-purple-600"

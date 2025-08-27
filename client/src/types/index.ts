@@ -21,6 +21,7 @@ export interface Repository {
   stargazers_count: number;
   forks_count: number;
   open_issues_count: number;
+  open_prs_count?: number;
   language: string;
   updated_at: string;
 }
@@ -42,6 +43,7 @@ export interface DashboardStats {
   totalStars: number;
   totalForks: number;
   totalIssues: number;
+  totalOpenPRs: number;
   totalContributors: number;
 }
 
@@ -55,6 +57,7 @@ export interface GuestRepo {
   stargazers_count: number;
   forks_count: number;
   open_issues_count: number;
+  open_prs_count?: number;
   language: string;
   updated_at: string;
   contributors: number;
