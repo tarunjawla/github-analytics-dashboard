@@ -1,7 +1,9 @@
 import type { RepoStats, ChartDataPoint } from "../types";
+import { defaultTo, sortBy, map as _map, forEach as _forEach } from "lodash";
 
-export const formatChartData = (stats: RepoStats[]): ChartDataPoint[] => {
-  return stats.map((stat) => ({
+export const formatChartData = (stats: RepoStats[] | undefined): ChartDataPoint[] => {
+  const safeStats = defaultTo(stats, [] as RepoStats[]);
+  return _map(safeStats, (stat) => ({
     name: stat.repo_name,
     value: stat.stars,
     date: new Date(stat.timestamp).toLocaleDateString(),
@@ -9,27 +11,24 @@ export const formatChartData = (stats: RepoStats[]): ChartDataPoint[] => {
 };
 
 export const formatTimeSeriesData = (
-  stats: RepoStats[],
+  stats: RepoStats[] | undefined,
   metric: keyof Pick<RepoStats, "stars" | "forks" | "issues" | "contributors">
 ): ChartDataPoint[] => {
-  return stats
-    .sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    )
-    .map((stat) => ({
-      name: new Date(stat.timestamp).toLocaleDateString(),
-      value: stat[metric],
-      date: stat.timestamp,
-    }));
+  const safeStats = defaultTo(stats, [] as RepoStats[]);
+  const sorted = sortBy(safeStats, (s) => new Date(s.timestamp).getTime());
+  return _map(sorted, (stat) => ({
+    name: new Date(stat.timestamp).toLocaleDateString(),
+    value: stat[metric],
+    date: stat.timestamp,
+  }));
 };
 
 export const groupStatsByRepo = (
-  stats: RepoStats[]
+  stats: RepoStats[] | undefined
 ): Map<string, RepoStats[]> => {
   const grouped = new Map<string, RepoStats[]>();
 
-  stats.forEach((stat) => {
+  _forEach(defaultTo(stats, [] as RepoStats[]), (stat) => {
     const existing = grouped.get(stat.repo_name) || [];
     existing.push(stat);
     grouped.set(stat.repo_name, existing);
@@ -38,10 +37,10 @@ export const groupStatsByRepo = (
   return grouped;
 };
 
-export const getLatestStats = (stats: RepoStats[]): RepoStats[] => {
+export const getLatestStats = (stats: RepoStats[] | undefined): RepoStats[] => {
   const latest = new Map<string, RepoStats>();
 
-  stats.forEach((stat) => {
+  _forEach(defaultTo(stats, [] as RepoStats[]), (stat) => {
     const existing = latest.get(stat.repo_name);
     if (!existing || new Date(stat.timestamp) > new Date(existing.timestamp)) {
       latest.set(stat.repo_name, stat);

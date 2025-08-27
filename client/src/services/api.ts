@@ -1,11 +1,12 @@
-import axios from "axios";
 import type { AxiosInstance, AxiosResponse } from "axios";
+import axios from "axios";
+import { get as _get } from "lodash";
 import type {
   ApiResponse,
-  RepoStats,
-  Repository,
   GuestRepo,
   OAuthUrl,
+  RepoStats,
+  Repository,
 } from "../types";
 
 class ApiService {
@@ -54,7 +55,10 @@ class ApiService {
   async get<T>(url: string): Promise<ApiResponse<T>> {
     try {
       const response = await this.api.get<ApiResponse<T>>(url);
-      return response.data;
+      // Normalize: allow both wrapped { data } and raw array/object
+      const data = _get(response, "data", {} as unknown);
+      const normalized = (data && (data as any).data !== undefined) ? data : { data };
+      return normalized as ApiResponse<T>;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "An error occurred";
@@ -69,7 +73,9 @@ class ApiService {
   async post<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
     try {
       const response = await this.api.post<ApiResponse<T>>(url, data);
-      return response.data;
+      const resData = _get(response, "data", {} as unknown);
+      const normalized = (resData && (resData as any).data !== undefined) ? resData : { data: resData };
+      return normalized as ApiResponse<T>;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "An error occurred";

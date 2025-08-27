@@ -15,7 +15,11 @@
     "start": "concurrently \"cd server && npm run start:prod\" \"cd client && npm run preview\""
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@nestjs/cli": "^11.0.10",
+    "@types/node": "^24.3.0",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   },
   "workspaces": [
     "client",

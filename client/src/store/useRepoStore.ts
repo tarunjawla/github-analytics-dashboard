@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { Repository, RepoStats, GuestRepo, AppMode } from "../types";
 import { apiService } from "../services/api";
+import { trim } from "lodash";
 
 interface RepoState {
   mode: AppMode;
@@ -44,6 +45,50 @@ type RepoStore = RepoState & RepoActions;
 export const useRepoStore = create<RepoStore>()(
   devtools(
     (set, get) => ({
+      // Helper: normalize any GitHub input into owner/repo
+      // Supports: https URLs, SSH, raw owner/repo, with or without .git
+      // Examples:
+      //  - https://github.com/facebook/react -> facebook/react
+      //  - git@github.com:facebook/react.git -> facebook/react
+      //  - facebook/react -> facebook/react
+      normalizeRepoInput: (input: string): string => {
+        let value: string = trim(input).toLowerCase();
+
+        // SSH form: git@github.com:owner/repo(.git)?
+        if (value.startsWith("git@github.com:")) {
+          value = value.replace("git@github.com:", "");
+        }
+
+        // If it looks like a URL, try URL parsing
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+          try {
+            const url = new URL(value);
+            const parts = url.pathname.split("/").filter(Boolean);
+            if (parts.length >= 2) {
+              value = `${parts[0]}/${parts[1]}`;
+            }
+          } catch {
+            // Fallback to pattern handling below
+          }
+        }
+
+        // If still contains github.com path without protocol
+        if (value.includes("github.com")) {
+          const idx = value.indexOf("github.com");
+          const path = value.slice(idx + "github.com".length);
+          const parts = path.split("/").filter(Boolean);
+          if (parts.length >= 2) {
+            value = `${parts[0]}/${parts[1]}`;
+          }
+        }
+
+        // Drop trailing .git if present
+        if (value.endsWith(".git")) {
+          value = value.slice(0, -4);
+        }
+
+        return value;
+      },
       // Initial state
       mode: "guest",
       repositories: [],
@@ -70,7 +115,9 @@ export const useRepoStore = create<RepoStore>()(
       addRepoGuest: async (repoName: string) => {
         try {
           set({ loading: true, error: null });
-          const repo = await apiService.addRepoGuest(repoName);
+          // Normalize input to owner/repo for backend validation
+          const normalized = (get() as any).normalizeRepoInput(repoName);
+          const repo = await apiService.addRepoGuest(normalized);
           set((state) => ({
             guestRepos: [...state.guestRepos, repo],
           }));

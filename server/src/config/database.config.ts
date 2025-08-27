@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions, TypeOrmOptionsFactory } from '@nestjs/typeorm';
 import { RepoStats } from '../common/entities/repo-stats.entity';
+import { Repository } from '../common/entities/repository.entity';
+import { User } from '../common/entities/user.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -15,7 +17,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       username: this.configService.get('DB_USER', 'postgres'),
       password: this.configService.get('DB_PASSWORD', 'postgres'),
       database: this.configService.get('DB_NAME', 'github_analytics'),
-      entities: [RepoStats],
+      entities: [User, Repository, RepoStats],
       synchronize: this.configService.get('NODE_ENV') === 'development',
       logging: this.configService.get('NODE_ENV') === 'development',
       ssl: this.configService.get('NODE_ENV') === 'production',
